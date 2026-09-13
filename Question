@@ -1,0 +1,29 @@
+The xFusionCorp Industries ML platform team operates a fraud-detection training process structured as a four-stage pipeline: preprocess, featurize, train, and evaluate. 
+This pipeline is managed by a single Python script that consolidates the entire run into one MLflow execution. However, two critical issues need to be addressed.
+
+First, the stage chain is incorrectly configured, resulting in two stages reading from the incorrect upstream source. 
+As a consequence, the preprocess and featurize stages do not successfully transmit their outputs to the model, despite the pipeline indicating a successful run.
+
+Second, the orchestrator currently fails to log the run; neither the pipeline's configuration nor its final metrics are recorded in MLflow.
+
+Your task is to identify and rectify the miswiring in the stage chain and to enhance the orchestrator, ensuring that a single MLflow run accurately captures the parameters of the pipeline and its evaluation metrics.
+
+1. The MLflow tracking server is already running on port 5000. The MLflow UI button at the top of the lab can be opened to confirm—the dashboard loads with an empty training-pipeline experiment.
+
+2. The project layout under /root/code/fraud-detection/:
+
+	-> data/raw/train.csv – The same 200-row synthetic binary-classification dataset the rest of the Training section uses (imbalanced roughly 70 / 30).
+	-> configs/pipeline_config.yaml – Declares the data paths, model hyperparameters, output paths, and MLflow settings every stage consumes. Correct and must remain intact.
+	-> src/preprocess.py, src/featurize.py, src/train.py, src/evaluate.py – The four pipeline stages. preprocess.py drops negligible-amount rows (amount < 50) and duplicates before writing the processed CSV. 
+	The four stages are wired through the config's data: paths.
+	-> run_pipeline.py – The orchestrator that executes the four stages in order under a single MLflow run. 
+	The stage-execution loop and fail-fast handling are wired; two tracking steps (logging the config parameters and the final metrics) are marked TODO for you to complete.
+
+3. Run the orchestrator once against the scaffold as-is—python run_pipeline.py—then inspect the row counts of the intermediate CSVs under data/ to see where the stage chain diverges (the pipeline reports success even though outputs do not flow through).
+
+4. The end state must include:
+
+	-> The row count of data/features/features.csv equals the row count of data/processed/train_clean.csv and is strictly less than the 200-row raw CSV.
+	-> The training stage consumes the feature matrix — the engineered amount_log column produced by featurize is present in the training data (and in the persisted held-out set), not the pre-featurize processed data.
+	-> models/model.pkl and reports/evaluation.json are written and the report carries accuracy, f1, and roc_auc as numeric values.
+	-> Exactly one MLflow run exists in the training-pipeline experiment, carrying params.model_type, params.n_estimators, params.max_depth, and the three evaluation metrics.
